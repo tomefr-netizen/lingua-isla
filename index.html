@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Röststyrd PWA för översättning mellan svenska, filipinska och Bisaya."
+    />
+    <meta name="theme-color" content="#0f766e" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Lingua Isla</title>
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="ambient ambient-one"></div>
+      <div class="ambient ambient-two"></div>
+
+      <main class="app-shell">
+        <section class="hero-card panel">
+          <div>
+            <h1>Lingua Isla</h1>
+            <p class="hero-copy">
+              Tala på Svenska och få tillbaka text eller uppläst tal på
+              Filipinska, Tagalog eller Bisaya.
+            </p>
+          </div>
+
+          <button id="settingsButton" class="icon-button" type="button" aria-label="Öppna inställningar">
+            <span aria-hidden="true">⚙</span>
+          </button>
+        </section>
+
+        <section class="translator-card panel">
+          <div class="language-row">
+            <label class="language-picker">
+              <span>Från</span>
+              <select id="sourceLanguage">
+                <option value="sv">Svenska</option>
+                <option value="en">Engelska</option>
+                <option value="fil">Filipino (Tagalog)</option>
+                <option value="ceb">Bisaya (Cebuano)</option>
+              </select>
+            </label>
+
+            <button id="swapLanguages" class="swap-button" type="button" aria-label="Byt språk">
+              ⇅
+            </button>
+
+            <label class="language-picker">
+              <span>Till</span>
+              <select id="targetLanguage">
+                <option value="ceb">Bisaya (Cebuano)</option>
+                <option value="fil">Filipino (Tagalog)</option>
+                <option value="sv">Svenska</option>
+                <option value="en">Engelska</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="field-group">
+            <label for="inputText">Det du sa</label>
+            <textarea
+              id="inputText"
+              rows="4"
+              placeholder="Tryck på mikrofonen eller skriv här..."
+            ></textarea>
+          </div>
+
+          <div class="field-group">
+            <div class="result-header">
+              <label for="outputText">Översättning</label>
+              <label class="checkbox-row">
+                <input id="speakToggle" type="checkbox" checked />
+                <span>Läs upp svaret</span>
+              </label>
+            </div>
+            <textarea
+              id="outputText"
+              rows="4"
+              placeholder="Översatt text visas här..."
+              readonly
+            ></textarea>
+          </div>
+
+          <div class="mic-wrap">
+            <button id="micButton" class="mic-button" type="button" aria-pressed="false">
+              <span class="mic-core">🎙</span>
+              <span id="micLabel">Tryck och prata</span>
+            </button>
+            <p id="speechHint" class="supporting-text">
+              Web Speech API används för röstinmatning på mobilen.
+            </p>
+          </div>
+
+          <div class="action-row">
+            <button id="translateButton" class="primary-button" type="button">Översätt</button>
+            <button id="speakButton" class="secondary-button" type="button">Spela upp</button>
+            <button id="clearButton" class="secondary-button" type="button">Rensa</button>
+          </div>
+
+          <p id="statusMessage" class="status-message" role="status" aria-live="polite">
+            Klar att lyssna.
+          </p>
+        </section>
+      </main>
+
+      <aside id="settingsPanel" class="settings-drawer" aria-hidden="true">
+        <div class="settings-header">
+          <div>
+            <p class="eyebrow">Inställningar</p>
+            <h2>Översättningsmotor</h2>
+          </div>
+          <button id="closeSettingsButton" class="icon-button" type="button" aria-label="Stäng inställningar">
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+
+        <div class="settings-content">
+          <label class="field-group">
+            <span>Provider</span>
+            <select id="providerSelect">
+              <option value="google">Google Cloud Translation</option>
+              <option value="libre">LibreTranslate-kompatibel server</option>
+            </select>
+          </label>
+
+          <label id="apiKeyField" class="field-group">
+            <span>Google API-nyckel</span>
+            <input
+              id="apiKeyInput"
+              type="password"
+              placeholder="Klistras in lokalt på din enhet"
+              autocomplete="off"
+            />
+          </label>
+
+          <label id="libreUrlField" class="field-group">
+            <span>LibreTranslate-URL</span>
+            <input
+              id="libreUrlInput"
+              type="url"
+              placeholder="https://din-server.example/translate"
+            />
+          </label>
+
+          <div class="note-card">
+            <p>
+              Bisaya/Cebuano kräver i praktiken Google Cloud om du vill köra
+              direkt från GitHub Pages. Nyckeln sparas bara i din webbläsare.
+            </p>
+          </div>
+
+          <button id="saveSettingsButton" class="primary-button" type="button">
+            Spara inställningar
+          </button>
+        </div>
+      </aside>
+    </div>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
