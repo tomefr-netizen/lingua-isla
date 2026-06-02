@@ -296,8 +296,7 @@ async function translateText(text, source, target) {
             content: [
               {
                 type: "input_text",
-                text:
-                  "You are a precise translation engine for a family language app. Translate the user's text from the source language to the target language. Preserve meaning, tone, and short conversational style. Return only the translated text with no explanation.",
+                text: buildTranslationInstructions(source, target),
               },
             ],
           },
@@ -612,4 +611,21 @@ function getLanguageName(code) {
   };
 
   return names[code] || code;
+}
+
+function buildTranslationInstructions(source, target) {
+  const baseInstructions =
+    "You are a precise translation engine for a family language app. Translate the user's text from the source language to the target language. Preserve meaning, tone, and short conversational style. Return only the translated text with no explanation.";
+
+  if (target === "sv" && (source === "fil" || source === "ceb")) {
+    return `${baseInstructions} Write natural, simple modern Swedish. Prioritize how a Swedish speaker would normally phrase the sentence over copying the original grammar. Keep the meaning intact, but smooth out word order and idioms so the result sounds normal and easy to understand.`;
+  }
+
+  if ((target === "fil" || target === "ceb") && source === "sv") {
+    return `${baseInstructions} Write natural conversational ${getLanguageName(
+      target
+    )}. Prefer phrasing that sounds normal to a native speaker rather than a literal word-for-word rendering.`;
+  }
+
+  return baseInstructions;
 }
