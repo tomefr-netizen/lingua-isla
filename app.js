@@ -21,17 +21,19 @@ const settingsPanel = document.querySelector("#settingsPanel");
 const providerSelect = document.querySelector("#providerSelect");
 const apiKeyInput = document.querySelector("#apiKeyInput");
 const apiKeyLabel = document.querySelector("#apiKeyLabel");
+const voiceSelect = document.querySelector("#voiceSelect");
 const libreUrlInput = document.querySelector("#libreUrlInput");
 const saveSettingsButton = document.querySelector("#saveSettingsButton");
 const apiKeyField = document.querySelector("#apiKeyField");
+const voiceField = document.querySelector("#voiceField");
 const libreUrlField = document.querySelector("#libreUrlField");
 const providerNote = document.querySelector("#providerNote");
 
 const storageKey = "lingua-isla-settings";
-const APP_VERSION = "2026.06.02";
+const APP_VERSION = "2026.06.03";
 const OPENAI_TEXT_MODEL = "gpt-5-mini";
 const OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
-const OPENAI_TTS_VOICE = "coral";
+const DEFAULT_OPENAI_VOICE = "coral";
 const OPENAI_API_BASE = "https://api.openai.com/v1";
 const voiceLanguageMap = {
   sv: "sv-SE",
@@ -49,6 +51,7 @@ let pendingVersion = null;
 
 providerSelect.value = settings.provider;
 apiKeyInput.value = getCurrentApiKey();
+voiceSelect.value = settings.openaiVoice || DEFAULT_OPENAI_VOICE;
 libreUrlInput.value = settings.libreUrl;
 toggleProviderFields();
 
@@ -86,6 +89,7 @@ function loadSettings() {
   const fallback = {
     provider: "openai",
     openaiApiKey: "",
+    openaiVoice: DEFAULT_OPENAI_VOICE,
     googleApiKey: "",
     libreUrl: "",
   };
@@ -102,6 +106,7 @@ function saveSettings() {
   settings.provider = providerSelect.value;
   if (settings.provider === "openai") {
     settings.openaiApiKey = apiKeyInput.value.trim();
+    settings.openaiVoice = voiceSelect.value;
   }
 
   if (settings.provider === "google") {
@@ -122,13 +127,15 @@ function toggleProviderFields() {
   const usingGoogle = provider === "google";
 
   apiKeyField.classList.toggle("is-hidden", usingLibre);
+  voiceField.classList.toggle("is-hidden", !usingOpenAI);
   libreUrlField.classList.toggle("is-hidden", !usingLibre);
 
   if (usingOpenAI) {
     apiKeyLabel.textContent = "OpenAI API-nyckel";
     apiKeyInput.value = settings.openaiApiKey || "";
+    voiceSelect.value = settings.openaiVoice || DEFAULT_OPENAI_VOICE;
     providerNote.textContent =
-      "Din OpenAI-nyckel sparas bara lokalt på den här enheten. Varje användare behöver ange sin egen nyckel.";
+      "Din OpenAI-nyckel och valda röst sparas bara lokalt på den här enheten. Varje användare behöver ange sin egen nyckel.";
   } else if (usingGoogle) {
     apiKeyLabel.textContent = "Google API-nyckel";
     apiKeyInput.value = settings.googleApiKey || "";
@@ -543,7 +550,7 @@ async function speakWithOpenAI(text, language) {
     },
     body: JSON.stringify({
       model: OPENAI_TTS_MODEL,
-      voice: OPENAI_TTS_VOICE,
+      voice: settings.openaiVoice || DEFAULT_OPENAI_VOICE,
       input: text,
       instructions: `Speak naturally in ${getLanguageName(language)}. This is an AI-generated voice for a language learning app.`,
       format: "mp3",

@@ -1,4 +1,4 @@
-const cacheName = "lingua-isla-v2";
+const cacheName = "lingua-isla-v3";
 const offlineAssets = [
   "./",
   "./index.html",
