@@ -286,6 +286,19 @@ textarea:focus {
   gap: 10px;
 }
 
+.update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.update-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .primary-button,
 .secondary-button {
   min-height: 48px;
@@ -306,9 +319,21 @@ textarea:focus {
   border: 1px solid rgba(15, 118, 110, 0.08);
 }
 
+.primary-button--compact,
+.secondary-button--compact {
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  white-space: nowrap;
+}
+
 .status-message {
   min-height: 24px;
   font-weight: 700;
+}
+
+.update-message {
+  min-height: 22px;
 }
 
 .install-card {
@@ -393,7 +418,9 @@ textarea:focus {
   }
 
   .install-card,
-  .result-header {
+  .result-header,
+  .update-row,
+  .update-actions {
     align-items: stretch;
     flex-direction: column;
   }

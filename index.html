@@ -81,7 +81,7 @@
               <label for="outputText">Översättning</label>
               <label class="checkbox-row">
                 <input id="speakToggle" type="checkbox" checked />
-                <span>Läs upp svaret</span>
+                <span>Läs upp svaret (AI-röst)</span>
               </label>
             </div>
             <textarea
@@ -108,6 +108,20 @@
             <button id="clearButton" class="secondary-button" type="button">Rensa</button>
           </div>
 
+          <div class="update-row">
+            <p id="versionLabel" class="supporting-text">Appversion</p>
+            <div class="update-actions">
+              <button id="checkUpdateButton" class="secondary-button secondary-button--compact" type="button">
+                Sök uppdatering
+              </button>
+              <button id="refreshAppButton" class="primary-button primary-button--compact is-hidden" type="button">
+                Uppdatera appen
+              </button>
+            </div>
+          </div>
+
+          <p id="updateMessage" class="supporting-text update-message" role="status" aria-live="polite"></p>
+
           <p id="statusMessage" class="status-message" role="status" aria-live="polite">
             Klar att lyssna.
           </p>
@@ -129,13 +143,14 @@
           <label class="field-group">
             <span>Provider</span>
             <select id="providerSelect">
+              <option value="openai">OpenAI</option>
               <option value="google">Google Cloud Translation</option>
               <option value="libre">LibreTranslate-kompatibel server</option>
             </select>
           </label>
 
           <label id="apiKeyField" class="field-group">
-            <span>Google API-nyckel</span>
+            <span id="apiKeyLabel">OpenAI API-nyckel</span>
             <input
               id="apiKeyInput"
               type="password"
@@ -154,9 +169,9 @@
           </label>
 
           <div class="note-card">
-            <p>
-              Bisaya/Cebuano kräver i praktiken Google Cloud om du vill köra
-              direkt från GitHub Pages. Nyckeln sparas bara i din webbläsare.
+            <p id="providerNote">
+              Din API-nyckel sparas bara lokalt på den här enheten. Varje
+              användare behöver ange sin egen nyckel.
             </p>
           </div>
 

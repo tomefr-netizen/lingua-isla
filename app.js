@@ -11,25 +11,29 @@ const speakButton = document.querySelector("#speakButton");
 const clearButton = document.querySelector("#clearButton");
 const speakToggle = document.querySelector("#speakToggle");
 const statusMessage = document.querySelector("#statusMessage");
+const versionLabel = document.querySelector("#versionLabel");
+const checkUpdateButton = document.querySelector("#checkUpdateButton");
+const refreshAppButton = document.querySelector("#refreshAppButton");
+const updateMessage = document.querySelector("#updateMessage");
 const settingsButton = document.querySelector("#settingsButton");
 const closeSettingsButton = document.querySelector("#closeSettingsButton");
 const settingsPanel = document.querySelector("#settingsPanel");
 const providerSelect = document.querySelector("#providerSelect");
 const apiKeyInput = document.querySelector("#apiKeyInput");
+const apiKeyLabel = document.querySelector("#apiKeyLabel");
 const libreUrlInput = document.querySelector("#libreUrlInput");
 const saveSettingsButton = document.querySelector("#saveSettingsButton");
 const apiKeyField = document.querySelector("#apiKeyField");
 const libreUrlField = document.querySelector("#libreUrlField");
+const providerNote = document.querySelector("#providerNote");
 
 const storageKey = "lingua-isla-settings";
+const APP_VERSION = "2026.06.02";
+const OPENAI_TEXT_MODEL = "gpt-5-mini";
+const OPENAI_TTS_MODEL = "gpt-4o-mini-tts";
+const OPENAI_TTS_VOICE = "coral";
+const OPENAI_API_BASE = "https://api.openai.com/v1";
 const voiceLanguageMap = {
-  sv: "sv-SE",
-  en: "en-US",
-  fil: "fil-PH",
-  ceb: "fil-PH",
-};
-
-const synthesisLanguageMap = {
   sv: "sv-SE",
   en: "en-US",
   fil: "fil-PH",
@@ -38,12 +42,13 @@ const synthesisLanguageMap = {
 
 const settings = loadSettings();
 let recognition;
-let deferredPrompt = null;
 let isRecognizing = false;
 let isTranslating = false;
+let swRegistration = null;
+let pendingVersion = null;
 
 providerSelect.value = settings.provider;
-apiKeyInput.value = settings.googleApiKey;
+apiKeyInput.value = getCurrentApiKey();
 libreUrlInput.value = settings.libreUrl;
 toggleProviderFields();
 
@@ -53,7 +58,9 @@ function boot() {
   attachEvents();
   setupSpeechRecognition();
   registerServiceWorker();
+  versionLabel.textContent = `Appversion ${APP_VERSION}`;
   updateStatus("Klar att lyssna.");
+  updateMessage.textContent = "";
 }
 
 function attachEvents() {
@@ -66,6 +73,8 @@ function attachEvents() {
   closeSettingsButton.addEventListener("click", () => setSettingsOpen(false));
   saveSettingsButton.addEventListener("click", saveSettings);
   providerSelect.addEventListener("change", toggleProviderFields);
+  checkUpdateButton.addEventListener("click", checkForUpdates);
+  refreshAppButton.addEventListener("click", applyPendingUpdate);
   inputText.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       translateCurrentText();
@@ -75,7 +84,8 @@ function attachEvents() {
 
 function loadSettings() {
   const fallback = {
-    provider: "google",
+    provider: "openai",
+    openaiApiKey: "",
     googleApiKey: "",
     libreUrl: "",
   };
@@ -90,7 +100,14 @@ function loadSettings() {
 
 function saveSettings() {
   settings.provider = providerSelect.value;
-  settings.googleApiKey = apiKeyInput.value.trim();
+  if (settings.provider === "openai") {
+    settings.openaiApiKey = apiKeyInput.value.trim();
+  }
+
+  if (settings.provider === "google") {
+    settings.googleApiKey = apiKeyInput.value.trim();
+  }
+
   settings.libreUrl = libreUrlInput.value.trim();
   localStorage.setItem(storageKey, JSON.stringify(settings));
   toggleProviderFields();
@@ -99,9 +116,28 @@ function saveSettings() {
 }
 
 function toggleProviderFields() {
-  const usingGoogle = providerSelect.value === "google";
-  apiKeyField.classList.toggle("is-hidden", !usingGoogle);
-  libreUrlField.classList.toggle("is-hidden", usingGoogle);
+  const provider = providerSelect.value;
+  const usingLibre = provider === "libre";
+  const usingOpenAI = provider === "openai";
+  const usingGoogle = provider === "google";
+
+  apiKeyField.classList.toggle("is-hidden", usingLibre);
+  libreUrlField.classList.toggle("is-hidden", !usingLibre);
+
+  if (usingOpenAI) {
+    apiKeyLabel.textContent = "OpenAI API-nyckel";
+    apiKeyInput.value = settings.openaiApiKey || "";
+    providerNote.textContent =
+      "Din OpenAI-nyckel sparas bara lokalt på den här enheten. Varje användare behöver ange sin egen nyckel.";
+  } else if (usingGoogle) {
+    apiKeyLabel.textContent = "Google API-nyckel";
+    apiKeyInput.value = settings.googleApiKey || "";
+    providerNote.textContent =
+      "Din Google-nyckel sparas bara lokalt på den här enheten. Google-spåret kan vara användbart om du vill jämföra kvalitet.";
+  } else {
+    providerNote.textContent =
+      "LibreTranslate kräver ingen nyckel här, men du behöver en kompatibel serveradress.";
+  }
 }
 
 function setSettingsOpen(open) {
@@ -232,6 +268,61 @@ async function translateCurrentText() {
 async function translateText(text, source, target) {
   const provider = settings.provider || providerSelect.value;
 
+  if (provider === "openai") {
+    if (!settings.openaiApiKey) {
+      throw new Error(
+        "Lägg till en OpenAI API-nyckel i inställningarna för att använda OpenAI på den här enheten."
+      );
+    }
+
+    const response = await fetch(`${OPENAI_API_BASE}/responses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${settings.openaiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_TEXT_MODEL,
+        input: [
+          {
+            role: "system",
+            content: [
+              {
+                type: "input_text",
+                text:
+                  "You are a precise translation engine for a family language app. Translate the user's text from the source language to the target language. Preserve meaning, tone, and short conversational style. Return only the translated text with no explanation.",
+              },
+            ],
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: `Source language: ${getLanguageName(source)}\nTarget language: ${getLanguageName(
+                  target
+                )}\nText:\n${text}`,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("OpenAI svarade inte som väntat. Kontrollera API-nyckeln och försök igen.");
+    }
+
+    const payload = await response.json();
+    const translated = extractOpenAIText(payload).trim();
+
+    if (!translated) {
+      throw new Error("OpenAI returnerade ingen översättning.");
+    }
+
+    return translated;
+  }
+
   if (provider === "google") {
     if (!settings.googleApiKey) {
       throw new Error(
@@ -300,10 +391,22 @@ function maybeSpeak() {
   }
 }
 
-function speakText(text, language) {
+async function speakText(text, language) {
   if (!text.trim()) {
     updateStatus("Det finns ingen översättning att spela upp.");
     return;
+  }
+
+  if ((settings.provider || providerSelect.value) === "openai" && settings.openaiApiKey) {
+    try {
+      updateStatus("Skapar AI-röst...");
+      await speakWithOpenAI(text, language);
+      updateStatus("Läser upp med AI-röst.");
+      return;
+    } catch (error) {
+      console.error(error);
+      updateStatus("OpenAI-rösten misslyckades. Faller tillbaka till webbläsarröst.");
+    }
   }
 
   if (!("speechSynthesis" in window)) {
@@ -312,7 +415,7 @@ function speakText(text, language) {
   }
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = synthesisLanguageMap[language] || "en-US";
+  utterance.lang = voiceLanguageMap[language] || "en-US";
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
 }
@@ -338,8 +441,168 @@ async function registerServiceWorker() {
   }
 
   try {
-    await navigator.serviceWorker.register("./sw.js");
+    swRegistration = await navigator.serviceWorker.register("./sw.js");
+    bindServiceWorkerEvents(swRegistration);
+    await checkForUpdates({ silent: true });
   } catch (error) {
     console.error("Service worker registration failed", error);
   }
+}
+
+function bindServiceWorkerEvents(registration) {
+  if (registration.waiting) {
+    showUpdateAvailable();
+  }
+
+  registration.addEventListener("updatefound", () => {
+    const newWorker = registration.installing;
+
+    if (!newWorker) {
+      return;
+    }
+
+    newWorker.addEventListener("statechange", () => {
+      if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+        showUpdateAvailable();
+      }
+    });
+  });
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    window.location.reload();
+  });
+}
+
+async function checkForUpdates(options = {}) {
+  const silent = options.silent === true;
+
+  if (!silent) {
+    updateMessage.textContent = "Söker efter ny version...";
+  }
+
+  try {
+    const response = await fetch(`./version.json?ts=${Date.now()}`, { cache: "no-store" });
+    const payload = await response.json();
+    pendingVersion = payload.version || null;
+
+    if (pendingVersion && pendingVersion !== APP_VERSION) {
+      updateMessage.textContent = `Ny version ${pendingVersion} finns. Tryck på Uppdatera appen.`;
+      showUpdateAvailable();
+    } else if (swRegistration) {
+      await swRegistration.update();
+
+      if (swRegistration.waiting) {
+        updateMessage.textContent = "En ny version är nedladdad och redo att aktiveras.";
+        showUpdateAvailable();
+      } else if (!silent) {
+        hideUpdateButton();
+        updateMessage.textContent = "Du har redan den senaste versionen.";
+      }
+    } else if (!silent) {
+      hideUpdateButton();
+      updateMessage.textContent = "Du har redan den senaste versionen.";
+    }
+  } catch (error) {
+    console.error(error);
+    if (!silent) {
+      updateMessage.textContent = "Kunde inte kontrollera uppdateringar just nu.";
+    }
+  }
+}
+
+function showUpdateAvailable() {
+  refreshAppButton.classList.remove("is-hidden");
+}
+
+function hideUpdateButton() {
+  refreshAppButton.classList.add("is-hidden");
+}
+
+async function applyPendingUpdate() {
+  if (swRegistration?.waiting) {
+    swRegistration.waiting.postMessage({ type: "SKIP_WAITING" });
+    return;
+  }
+
+  await checkForUpdates();
+
+  if (swRegistration?.waiting) {
+    swRegistration.waiting.postMessage({ type: "SKIP_WAITING" });
+    return;
+  }
+
+  window.location.reload();
+}
+
+async function speakWithOpenAI(text, language) {
+  const response = await fetch(`${OPENAI_API_BASE}/audio/speech`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${settings.openaiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_TTS_MODEL,
+      voice: OPENAI_TTS_VOICE,
+      input: text,
+      instructions: `Speak naturally in ${getLanguageName(language)}. This is an AI-generated voice for a language learning app.`,
+      format: "mp3",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("OpenAI kunde inte skapa ljud just nu.");
+  }
+
+  const audioBlob = await response.blob();
+  const audioUrl = URL.createObjectURL(audioBlob);
+  const audio = new Audio(audioUrl);
+
+  audio.addEventListener("ended", () => URL.revokeObjectURL(audioUrl), { once: true });
+  audio.addEventListener("error", () => URL.revokeObjectURL(audioUrl), { once: true });
+
+  await audio.play();
+}
+
+function extractOpenAIText(payload) {
+  if (typeof payload.output_text === "string" && payload.output_text.trim()) {
+    return decodeHtmlEntities(payload.output_text);
+  }
+
+  const collected = [];
+
+  for (const item of payload.output || []) {
+    for (const content of item.content || []) {
+      if (typeof content.text === "string") {
+        collected.push(content.text);
+      } else if (content.type === "output_text" && typeof content.text === "string") {
+        collected.push(content.text);
+      }
+    }
+  }
+
+  return decodeHtmlEntities(collected.join("\n").trim());
+}
+
+function getCurrentApiKey() {
+  if (settings.provider === "google") {
+    return settings.googleApiKey || "";
+  }
+
+  if (settings.provider === "openai") {
+    return settings.openaiApiKey || "";
+  }
+
+  return "";
+}
+
+function getLanguageName(code) {
+  const names = {
+    sv: "Swedish",
+    en: "English",
+    fil: "Tagalog / Filipino",
+    ceb: "Cebuano / Bisaya",
+  };
+
+  return names[code] || code;
 }
